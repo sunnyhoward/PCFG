@@ -58,7 +58,7 @@ chunk_size = cfg["pcfg"]["chunk_size"]
 
 # Get experiment parameters
 experiment_cfg = cfg["experiment"]
-correlation_values = [0]#experiment_cfg["correlation_values"]
+correlation_values = [0.25]#experiment_cfg["correlation_values"]
 concentration_values = experiment_cfg["concentration_values"]
 
 # Build shared PCFG generator and pools (one-time cost for the whole experiment)
@@ -283,10 +283,17 @@ for correlation_idx, correlation in enumerate(correlation_values):
             pretrain_cfg["finetune_lr"],
         )
         
-        # concentration is fraction of count_a, rest is count_b
-        finetune_weights = [concentration, 1.0 - concentration]  # [count_a, count_b]
-        finetune_train_tasks = ["count_a", "count_b"]
-        
+        finetune_train_tasks = [
+            "count_a", "count_b", "count_c",
+            "count_aa", "count_bb", "count_cc",
+            "index_a", "index_b", "index_c",
+            "index_aa", "index_bb", "index_cc",
+            "token_at_40",
+        ]
+        other_task_weights = 1-concentration / len(finetune_train_tasks[1:]) # Distribute remaining weight among other tasks
+
+        finetune_weights = [concentration, *[other_task_weights] * (len(finetune_train_tasks) - 1)]
+                
         history_finetune = train(
             model=model,
             tokenizer=tokenizer,

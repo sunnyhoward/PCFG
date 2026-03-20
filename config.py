@@ -79,7 +79,7 @@ CFG = {
     "experiment": {
         "correlation_values": [0.0, 0.25, 0.5, 0.75, 1.0],
         "concentration_values": [0.1, 0.3, 0.5, 0.7, 0.9],
-        "pretrain_steps": 20000,
+        "pretrain_steps": 200000,
         "pretrain_batch_size": 96,
         "pretrain_lr": 0.001,
         "pretrain_min_lr": 0.00001,
