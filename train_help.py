@@ -202,6 +202,7 @@ def train(
     metrics=None,
     data_pools=None,
     correlation: float = 0.0,
+    on_eval=None,
 ):
     """Generic training loop with optional multi-set validation.
 
@@ -214,6 +215,9 @@ def train(
             pool.  ``0.0`` = all natural, ``1.0`` = all correlated.
         use_correlation: Deprecated – ignored when ``data_pools`` is provided.
         val_datasets: Optional validation datasets/loaders.
+        on_eval: Optional callback ``fn(model, step, history)`` called at each
+            eval step (after val metrics are recorded).  Can mutate ``history``
+            to add custom metrics.
     """
     if optimizer is None:
         optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
@@ -307,6 +311,138 @@ def train(
                         log_parts.append(f"{name} Acc: {v_acc:.4f}")
 
                 # Backwards-compatible keys for single validation set
+                if len(val_loaders) == 1:
+                    only_name = next(iter(val_loaders))
+                    if "loss" in metrics_set:
+                        history.setdefault("val_loss", []).append(
+                            history["val"][only_name]["loss"][-1]
+                        )
+                    if "answer_acc" in metrics_set:
+                        history.setdefault("val_answer_acc", []).append(
+                            history["val"][only_name]["answer_acc"][-1]
+                        )
+
+            print(" | ".join(log_parts))
+
+            if on_eval is not None:
+                on_eval(model, step, history)
+
+    return history
+
+
+def train_fast(
+    model,
+    train_loader,
+    device,
+    steps: int,
+    lr: float,
+    min_lr: float,
+    warmup_steps: int,
+    log_interval: int,
+    max_grad_norm: float = 1.0,
+    optimizer=None,
+    val_datasets=None,
+    val_batch_size=None,
+    tokenizer=None,
+    collate_fn_override=None,
+    log_prefix: str = "Train",
+    use_lr_schedule: bool = True,
+    lr_schedule_total_steps=None,
+    lr_schedule_start_step: int = 0,
+    metrics=None,
+):
+    """Training loop using a pre-built DataLoader (from fast_data.py).
+
+    Identical to ``train()`` but draws batches from *train_loader* instead of
+    calling ``sample_batch`` each step.  The loader is cycled automatically
+    if it runs out of batches before ``steps`` is reached.
+    """
+    if optimizer is None:
+        optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+
+    val_bs = val_batch_size or 64
+    val_loaders = _build_val_loaders(val_datasets, val_bs, tokenizer, collate_fn_override)
+
+    metrics_set = set(metrics or ["loss", "answer_acc"])
+
+    history = {
+        "steps": [],
+        "val": {name: {} for name in val_loaders},
+    }
+
+    if "loss" in metrics_set:
+        history["train_loss"] = []
+        for name in val_loaders:
+            history["val"][name]["loss"] = []
+
+    if "answer_acc" in metrics_set:
+        history["train_answer_acc"] = []
+        for name in val_loaders:
+            history["val"][name]["answer_acc"] = []
+
+    train_iter = iter(train_loader)
+
+    for step in range(1, steps + 1):
+        if use_lr_schedule:
+            schedule_total = lr_schedule_total_steps or steps
+            schedule_step = lr_schedule_start_step + step
+            cur_lr = get_cosine_lr(schedule_step, schedule_total, lr, min_lr, warmup_steps)
+        else:
+            cur_lr = lr
+        for pg in optimizer.param_groups:
+            pg['lr'] = cur_lr
+
+        # Get next batch, cycling the loader if exhausted
+        try:
+            batch = next(train_iter)
+        except StopIteration:
+            train_iter = iter(train_loader)
+            batch = next(train_iter)
+
+        input_ids = batch['input_ids'].to(device)
+        target_ids = batch['target_ids'].to(device)
+        answer_positions = batch['answer_positions']
+
+        model.train()
+        logits, loss = model(input_ids, target_ids)
+
+        optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+        optimizer.step()
+
+        train_acc = None
+        if "answer_acc" in metrics_set:
+            acc, total = calculate_answer_accuracy(logits, target_ids, answer_positions)
+            train_acc = acc if total > 0 else 0.0
+
+        if step % log_interval == 0:
+            history["steps"].append(step)
+            if "loss" in metrics_set:
+                history["train_loss"].append(loss.item())
+            if "answer_acc" in metrics_set:
+                history["train_answer_acc"].append(train_acc)
+
+            log_parts = [
+                f"{log_prefix} step {step}/{steps}",
+                f"LR: {cur_lr:.6f}",
+            ]
+
+            if "loss" in metrics_set:
+                log_parts.insert(1, f"Loss: {loss.item():.4f}")
+            if "answer_acc" in metrics_set:
+                log_parts.insert(2, f"Answer Acc: {train_acc:.4f}")
+
+            if val_loaders:
+                for name, loader in val_loaders.items():
+                    v_loss, v_acc = _evaluate_loader(model, loader, device, metrics_set)
+                    if "loss" in metrics_set:
+                        history["val"][name]["loss"].append(v_loss)
+                        log_parts.append(f"{name} Loss: {v_loss:.4f}")
+                    if "answer_acc" in metrics_set:
+                        history["val"][name]["answer_acc"].append(v_acc)
+                        log_parts.append(f"{name} Acc: {v_acc:.4f}")
+
                 if len(val_loaders) == 1:
                     only_name = next(iter(val_loaders))
                     if "loss" in metrics_set:
