@@ -1,0 +1,366 @@
+{
+  "corr_0.75": {
+    "conc_0.50": {
+      "finetune_final": {
+        "count_a_corr_acc": 1.0,
+        "count_a_corr_loss": 0.008491719296822945,
+        "count_a_uncorr_acc": 0.942,
+        "count_a_uncorr_loss": 0.16788922746976218,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.000679629314011739,
+        "count_b_uncorr_acc": 0.994,
+        "count_b_uncorr_loss": 0.010639115663555762,
+        "all_other_corr_acc": 0.9947272727272727,
+        "all_other_corr_loss": 0.018971251719229823,
+        "all_other_uncorr_acc": 0.9885454545454545,
+        "all_other_uncorr_loss": 0.03510091740011784
+      },
+      "reverse_final": {
+        "count_a_corr_acc": 0.996,
+        "count_a_corr_loss": 0.03368720940003792,
+        "count_a_uncorr_acc": 0.754,
+        "count_a_uncorr_loss": 0.722340593735377,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.00024145692198847732,
+        "count_b_uncorr_acc": 0.998,
+        "count_b_uncorr_loss": 0.007723459488867472,
+        "all_other_corr_acc": 0.9949090909090909,
+        "all_other_corr_loss": 0.015380029500851504,
+        "all_other_uncorr_acc": 0.9905454545454545,
+        "all_other_uncorr_loss": 0.030828317689532734
+      }
+    },
+    "conc_0.70": {
+      "finetune_final": {
+        "count_a_corr_acc": 1.0,
+        "count_a_corr_loss": 0.004863738392790158,
+        "count_a_uncorr_acc": 0.966,
+        "count_a_uncorr_loss": 0.11365532502532005,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.001265501618036069,
+        "count_b_uncorr_acc": 0.992,
+        "count_b_uncorr_loss": 0.016653250708865624,
+        "all_other_corr_acc": 0.9930909090909091,
+        "all_other_corr_loss": 0.022603887474517626,
+        "all_other_uncorr_acc": 0.9878181818181818,
+        "all_other_uncorr_loss": 0.03963033344339708
+      },
+      "reverse_final": {
+        "count_a_corr_acc": 0.998,
+        "count_a_corr_loss": 0.026139513744662207,
+        "count_a_uncorr_acc": 0.766,
+        "count_a_uncorr_loss": 0.6817608078320821,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.00029948036778174963,
+        "count_b_uncorr_acc": 0.998,
+        "count_b_uncorr_loss": 0.008584890495209644,
+        "all_other_corr_acc": 0.9949090909090909,
+        "all_other_corr_loss": 0.016254364850063777,
+        "all_other_uncorr_acc": 0.9907272727272727,
+        "all_other_uncorr_loss": 0.031053787362280077
+      }
+    },
+    "conc_0.10": {
+      "finetune_final": {
+        "count_a_corr_acc": 0.998,
+        "count_a_corr_loss": 0.05424766428768635,
+        "count_a_uncorr_acc": 0.714,
+        "count_a_uncorr_loss": 0.9401829441388448,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.00028270294327133644,
+        "count_b_uncorr_acc": 0.998,
+        "count_b_uncorr_loss": 0.00633780126615117,
+        "all_other_corr_acc": 0.9950909090909091,
+        "all_other_corr_loss": 0.01632889747170025,
+        "all_other_uncorr_acc": 0.99,
+        "all_other_uncorr_loss": 0.030612340134745144
+      },
+      "reverse_final": {
+        "count_a_corr_acc": 0.992,
+        "count_a_corr_loss": 0.09588754922151566,
+        "count_a_uncorr_acc": 0.614,
+        "count_a_uncorr_loss": 1.3640507260958354,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.0002506706490142581,
+        "count_b_uncorr_acc": 0.998,
+        "count_b_uncorr_loss": 0.0077098738790179295,
+        "all_other_corr_acc": 0.9950909090909091,
+        "all_other_corr_loss": 0.015489294476945612,
+        "all_other_uncorr_acc": 0.9905454545454545,
+        "all_other_uncorr_loss": 0.030025986752850165
+      }
+    },
+    "conc_0.90": {
+      "finetune_final": {
+        "count_a_corr_acc": 1.0,
+        "count_a_corr_loss": 0.0030752739403396845,
+        "count_a_uncorr_acc": 0.978,
+        "count_a_uncorr_loss": 0.08442810053626697,
+        "count_b_corr_acc": 0.996,
+        "count_b_corr_loss": 0.007357093738391995,
+        "count_b_uncorr_acc": 0.98,
+        "count_b_uncorr_loss": 0.04584423266351223,
+        "all_other_corr_acc": 0.988,
+        "all_other_corr_loss": 0.03611901726027758,
+        "all_other_uncorr_acc": 0.9790909090909091,
+        "all_other_uncorr_loss": 0.05865578097291291
+      },
+      "reverse_final": {
+        "count_a_corr_acc": 0.992,
+        "count_a_corr_loss": 0.03853147150948644,
+        "count_a_uncorr_acc": 0.66,
+        "count_a_uncorr_loss": 1.0814112722873688,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.00040625014905041706,
+        "count_b_uncorr_acc": 0.998,
+        "count_b_uncorr_loss": 0.010554285681185624,
+        "all_other_corr_acc": 0.9952727272727273,
+        "all_other_corr_loss": 0.016706267925248288,
+        "all_other_uncorr_acc": 0.9898181818181818,
+        "all_other_uncorr_loss": 0.032147338262614636
+      }
+    },
+    "conc_0.30": {
+      "finetune_final": {
+        "count_a_corr_acc": 1.0,
+        "count_a_corr_loss": 0.0171608692035079,
+        "count_a_uncorr_acc": 0.9,
+        "count_a_uncorr_loss": 0.3041222070654233,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.0004024515352890982,
+        "count_b_uncorr_acc": 0.998,
+        "count_b_uncorr_loss": 0.007495481307463099,
+        "all_other_corr_acc": 0.9949090909090909,
+        "all_other_corr_loss": 0.01760647802890664,
+        "all_other_uncorr_acc": 0.9898181818181818,
+        "all_other_uncorr_loss": 0.03237092369517054
+      },
+      "reverse_final": {
+        "count_a_corr_acc": 0.998,
+        "count_a_corr_loss": 0.04963583002487818,
+        "count_a_uncorr_acc": 0.74,
+        "count_a_uncorr_loss": 0.8596334854761759,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.00020050223247380927,
+        "count_b_uncorr_acc": 0.998,
+        "count_b_uncorr_loss": 0.007581510066908474,
+        "all_other_corr_acc": 0.9950909090909091,
+        "all_other_corr_loss": 0.016085301766499218,
+        "all_other_uncorr_acc": 0.9910909090909091,
+        "all_other_uncorr_loss": 0.03044458039522428
+      }
+    },
+    "conc_1.00": {
+      "finetune_final": {
+        "count_a_corr_acc": 1.0,
+        "count_a_corr_loss": 0.002384464256465435,
+        "count_a_uncorr_acc": 0.982,
+        "count_a_uncorr_loss": 0.07194025379916032,
+        "count_b_corr_acc": 0.542,
+        "count_b_corr_loss": 2.4185823996861777,
+        "count_b_uncorr_acc": 0.69,
+        "count_b_uncorr_loss": 1.667296290397644,
+        "all_other_corr_acc": 0.9181818181818182,
+        "all_other_corr_loss": 0.39346502258859833,
+        "all_other_uncorr_acc": 0.8767272727272727,
+        "all_other_uncorr_loss": 0.6270969751580008
+      },
+      "reverse_final": {
+        "count_a_corr_acc": 0.948,
+        "count_a_corr_loss": 0.16557868694265684,
+        "count_a_uncorr_acc": 0.5,
+        "count_a_uncorr_loss": 2.0899460117022195,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.0005028095353433552,
+        "count_b_uncorr_acc": 0.996,
+        "count_b_uncorr_loss": 0.011242939702545604,
+        "all_other_corr_acc": 0.9949090909090909,
+        "all_other_corr_loss": 0.016568291197723614,
+        "all_other_uncorr_acc": 0.9898181818181818,
+        "all_other_uncorr_loss": 0.03268909664093998
+      }
+    }
+  },
+  "corr_1.00": {
+    "conc_0.90": {
+      "finetune_final": {
+        "count_a_corr_acc": 1.0,
+        "count_a_corr_loss": 0.00014572079089703038,
+        "count_a_uncorr_acc": 0.204,
+        "count_a_uncorr_loss": 12.801180362701416,
+        "count_b_corr_acc": 0.99,
+        "count_b_corr_loss": 0.05962482032676538,
+        "count_b_uncorr_acc": 0.734,
+        "count_b_uncorr_loss": 1.3241067032019298,
+        "all_other_corr_acc": 0.9730909090909091,
+        "all_other_corr_loss": 0.08916084413769944,
+        "all_other_uncorr_acc": 0.9425454545454546,
+        "all_other_uncorr_loss": 0.2510035588438141
+      },
+      "reverse_final": {
+        "count_a_corr_acc": 0.996,
+        "count_a_corr_loss": 0.028499198767046135,
+        "count_a_uncorr_acc": 0.288,
+        "count_a_uncorr_loss": 9.41555118560791,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.0010171988057360675,
+        "count_b_uncorr_acc": 0.582,
+        "count_b_uncorr_loss": 2.455599327882131,
+        "all_other_corr_acc": 0.9781818181818182,
+        "all_other_corr_loss": 0.06406586347468968,
+        "all_other_uncorr_acc": 0.9390909090909091,
+        "all_other_uncorr_loss": 0.2638496373105666
+      }
+    },
+    "conc_0.50": {
+      "finetune_final": {
+        "count_a_corr_acc": 1.0,
+        "count_a_corr_loss": 0.0004089304408504783,
+        "count_a_uncorr_acc": 0.212,
+        "count_a_uncorr_loss": 12.184752623240152,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.002209476850111969,
+        "count_b_uncorr_acc": 0.69,
+        "count_b_uncorr_loss": 1.5336230198542278,
+        "all_other_corr_acc": 0.9783636363636363,
+        "all_other_corr_loss": 0.06911075174615815,
+        "all_other_uncorr_acc": 0.9574545454545454,
+        "all_other_uncorr_loss": 0.16398938989330983
+      },
+      "reverse_final": {
+        "count_a_corr_acc": 0.996,
+        "count_a_corr_loss": 0.009000949057129523,
+        "count_a_uncorr_acc": 0.248,
+        "count_a_uncorr_loss": 9.759455362955729,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.0008013869446585886,
+        "count_b_uncorr_acc": 0.6,
+        "count_b_uncorr_loss": 2.1310577193895974,
+        "all_other_corr_acc": 0.9801818181818182,
+        "all_other_corr_loss": 0.06194819349410205,
+        "all_other_uncorr_acc": 0.9447272727272727,
+        "all_other_uncorr_loss": 0.2215426241144024
+      }
+    },
+    "conc_0.70": {
+      "finetune_final": {
+        "count_a_corr_acc": 1.0,
+        "count_a_corr_loss": 0.0002179417121321118,
+        "count_a_uncorr_acc": 0.208,
+        "count_a_uncorr_loss": 12.485943158467611,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.005685098003596067,
+        "count_b_uncorr_acc": 0.702,
+        "count_b_uncorr_loss": 1.5457193454106648,
+        "all_other_corr_acc": 0.9756363636363636,
+        "all_other_corr_loss": 0.07196656500535278,
+        "all_other_uncorr_acc": 0.9512727272727273,
+        "all_other_uncorr_loss": 0.1861551770105444
+      },
+      "reverse_final": {
+        "count_a_corr_acc": 0.996,
+        "count_a_corr_loss": 0.010336305480450392,
+        "count_a_uncorr_acc": 0.258,
+        "count_a_uncorr_loss": 9.795235315958658,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.0011192778086600204,
+        "count_b_uncorr_acc": 0.582,
+        "count_b_uncorr_loss": 2.3763787150382996,
+        "all_other_corr_acc": 0.9794545454545455,
+        "all_other_corr_loss": 0.06308923966797261,
+        "all_other_uncorr_acc": 0.9427272727272727,
+        "all_other_uncorr_loss": 0.23584748926604615
+      }
+    },
+    "conc_0.30": {
+      "finetune_final": {
+        "count_a_corr_acc": 1.0,
+        "count_a_corr_loss": 0.0015646466320807424,
+        "count_a_uncorr_acc": 0.218,
+        "count_a_uncorr_loss": 11.623693466186523,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.0013573685573646799,
+        "count_b_uncorr_acc": 0.69,
+        "count_b_uncorr_loss": 1.4820101261138916,
+        "all_other_corr_acc": 0.9774545454545455,
+        "all_other_corr_loss": 0.06790315477049043,
+        "all_other_uncorr_acc": 0.9590909090909091,
+        "all_other_uncorr_loss": 0.1520699273537973
+      },
+      "reverse_final": {
+        "count_a_corr_acc": 0.998,
+        "count_a_corr_loss": 0.010162569854098061,
+        "count_a_uncorr_acc": 0.238,
+        "count_a_uncorr_loss": 9.328725814819336,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.0009231816366082057,
+        "count_b_uncorr_acc": 0.612,
+        "count_b_uncorr_loss": 1.885391116142273,
+        "all_other_corr_acc": 0.980909090909091,
+        "all_other_corr_loss": 0.06152382093192688,
+        "all_other_uncorr_acc": 0.9476363636363636,
+        "all_other_uncorr_loss": 0.21697981829016372
+      }
+    },
+    "conc_0.10": {
+      "finetune_final": {
+        "count_a_corr_acc": 0.998,
+        "count_a_corr_loss": 0.00952121137136904,
+        "count_a_uncorr_acc": 0.222,
+        "count_a_uncorr_loss": 10.204743067423502,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.0012176443269709125,
+        "count_b_uncorr_acc": 0.726,
+        "count_b_uncorr_loss": 1.1756181021531422,
+        "all_other_corr_acc": 0.9774545454545455,
+        "all_other_corr_loss": 0.06665835354541397,
+        "all_other_uncorr_acc": 0.9636363636363636,
+        "all_other_uncorr_loss": 0.1410010427172328
+      },
+      "reverse_final": {
+        "count_a_corr_acc": 0.994,
+        "count_a_corr_loss": 0.035546606251349054,
+        "count_a_uncorr_acc": 0.248,
+        "count_a_uncorr_loss": 8.0966796875,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.0013529097777791321,
+        "count_b_uncorr_acc": 0.612,
+        "count_b_uncorr_loss": 1.8536941607793171,
+        "all_other_corr_acc": 0.9796363636363636,
+        "all_other_corr_loss": 0.061900661535689544,
+        "all_other_uncorr_acc": 0.9469090909090909,
+        "all_other_uncorr_loss": 0.20820754143441544
+      }
+    },
+    "conc_1.00": {
+      "finetune_final": {
+        "count_a_corr_acc": 1.0,
+        "count_a_corr_loss": 3.9991743506107014e-05,
+        "count_a_uncorr_acc": 0.192,
+        "count_a_uncorr_loss": 14.178818384806315,
+        "count_b_corr_acc": 0.0,
+        "count_b_corr_loss": 11.273977915445963,
+        "count_b_uncorr_acc": 0.414,
+        "count_b_uncorr_loss": 6.178797086079915,
+        "all_other_corr_acc": 0.7738181818181818,
+        "all_other_corr_loss": 1.7383403798629498,
+        "all_other_uncorr_acc": 0.769090909090909,
+        "all_other_uncorr_loss": 1.869943365968507
+      },
+      "reverse_final": {
+        "count_a_corr_acc": 0.246,
+        "count_a_corr_loss": 4.664031744003296,
+        "count_a_uncorr_acc": 0.298,
+        "count_a_uncorr_loss": 7.814409812291463,
+        "count_b_corr_acc": 1.0,
+        "count_b_corr_loss": 0.0018073738174280152,
+        "count_b_uncorr_acc": 0.57,
+        "count_b_uncorr_loss": 2.645177205403646,
+        "all_other_corr_acc": 0.9794545454545455,
+        "all_other_corr_loss": 0.06554908841719916,
+        "all_other_uncorr_acc": 0.9409090909090909,
+        "all_other_uncorr_loss": 0.27180128319767016
+      }
+    }
+  }
+}

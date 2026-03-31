@@ -145,26 +145,27 @@ def build_pools(
     n_correlated: int,
     n_uncorrelated: int,
     chunk_size: int = 250,
+    window: int = 40,
     verbose: bool = True,
 ) -> Dict[str, List[str]]:
     """Pre-build correlated and uncorrelated PCFG string pools.
 
-    **Correlated** strings satisfy ``count('a') == count('b') + 1`` in the full
-    chunk.  **Uncorrelated** strings are naturally generated with no filter.
+    **Correlated** strings satisfy ``count('a') == count('b') + 1`` in the
+    last ``window`` characters (i.e. the same region the count tasks operate
+    on).  **Uncorrelated** strings are naturally generated with no filter.
 
     Both pools are filled in a single pass:
     - Every generated string is added to the uncorrelated pool until it is full.
-    - Strings where count(a) == count(b) + 1 also go into the correlated pool.
-
-    This means the uncorrelated pool is filled almost immediately (at natural
-    generation speed), and the correlated pool gradually fills via rejection
-    sampling (~4 % acceptance rate for 250-char chunks).
+    - Strings whose last ``window`` chars have count(a) == count(b) + 1 go
+      into the correlated pool.
 
     Args:
         pcfg_gen: PCFGGenerator instance.
         n_correlated: Number of correlated strings to collect.
         n_uncorrelated: Number of uncorrelated (natural) strings to collect.
         chunk_size: Length of each PCFG chunk.
+        window: Number of trailing characters to check the correlation in
+            (should match the count-task window, default 40).
         verbose: If True, print progress updates.
 
     Returns:
@@ -177,7 +178,7 @@ def build_pools(
     if verbose:
         print(
             f"Building PCFG pools: {n_correlated:,} correlated + "
-            f"{n_uncorrelated:,} uncorrelated strings …"
+            f"{n_uncorrelated:,} uncorrelated strings (window={window}) …"
         )
 
     while len(correlated) < n_correlated:
@@ -187,7 +188,8 @@ def build_pools(
         if len(uncorrelated) < n_uncorrelated:
             uncorrelated.append(chunk)
 
-        if chunk.count('a') == chunk.count('b') + 1:
+        tail = chunk[-window:]
+        if tail.count('a') == tail.count('b') + 1:
             correlated.append(chunk)
 
         if verbose and total_generated % 50_000 == 0:

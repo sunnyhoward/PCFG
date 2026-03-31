@@ -77,7 +77,7 @@ CFG = {
         "eval_per_other_task": 500,
     },
     "experiment": {
-        "correlation_values": [0.0, 0.25, 0.5, 0.75, 1.0],
+        "correlation_values": [0.75, 1.0],
         "concentration_values": [ 0.1,  0.3, 0.5, 0.7, 0.9, 1.0],
         "pretrain_steps": 200000,
         "pretrain_batch_size": 96,
@@ -91,7 +91,7 @@ CFG = {
         "finetune_min_lr": 0.0000001,
         "finetune_warmup_ratio": 0.2,
         "finetune_log_interval": 200,
-        "reverse_steps": 4000,
+        "reverse_steps": 8000,
         "reverse_batch_size": 96,
         "reverse_lr": 0.00001,
         "reverse_min_lr": 0.0000001,
