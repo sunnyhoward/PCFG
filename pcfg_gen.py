@@ -1,14 +1,8 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn import functional as F
-from torch.utils.data import Dataset, DataLoader
-import numpy as np
+from torch.utils.data import Dataset
 import random
-from dataclasses import dataclass
-from typing import List, Dict, Tuple, Callable, Optional
-from collections import defaultdict
-import math
+from typing import List, Dict, Tuple, Callable
 
 class PCFGGenerator:
     """Probabilistic Context-Free Grammar generator.
@@ -93,13 +87,11 @@ class PCFGGenerator:
         
         return ''.join(symbols)
     
-    def generate_chunk(self, chunk_size: int = 250, use_correlation: bool = False) -> str:
+    def generate_chunk(self, chunk_size: int = 250) -> str:
         """Generate a string and subsample a chunk of the given size.
-        
+
         Args:
             chunk_size: Number of characters to return.
-            use_correlation: Deprecated – has no effect.  Kept for backwards
-                compatibility only.
 
         Returns:
             Subsampled chunk of the generated string.
@@ -112,28 +104,6 @@ class PCFGGenerator:
         start_idx = random.randint(0, len(full_string) - chunk_size)
         return full_string[start_idx:start_idx + chunk_size]
 
-    def generate_correlated_chunk(
-        self, chunk_size: int = 250, max_attempts: int = 500
-    ) -> str:
-        """Generate a chunk where ``count('a') == count('b') + 1`` in the full chunk.
-
-        Uses rejection sampling: generates PCFG chunks until the condition holds.
-        If ``max_attempts`` is reached without finding a satisfying chunk the last
-        generated chunk is returned (as a fallback).
-
-        Args:
-            chunk_size: Number of characters in the returned chunk.
-            max_attempts: Maximum generation attempts before giving up.
-
-        Returns:
-            A PCFG chunk satisfying count(a) == count(b) + 1 (best-effort).
-        """
-        chunk = self.generate_chunk(chunk_size)
-        for _ in range(max_attempts - 1):
-            if chunk.count('a') == chunk.count('b') + 1:
-                return chunk
-            chunk = self.generate_chunk(chunk_size)
-        return chunk
 
 
 # ---------------------------------------------------------------------------
@@ -403,32 +373,6 @@ def format_example(pcfg_string: str, task_def: str, answer: str) -> List[str]:
     tokens.extend(_tokenize_with_numbers(answer))
     tokens.append('[EOS]')
     return tokens
-
-def generate_dataset(n_examples: int, task_names: List[str], 
-                    pcfg_gen: PCFGGenerator, 
-                    task_reg: TaskRegistry,
-                    chunk_size: int = 250,
-                    use_correlation: bool = False) -> List[List[str]]:
-    """Generate a dataset of tokenized examples.
-
-    Args:
-        use_correlation: Deprecated – has no effect.  Kept for backwards
-            compatibility only.  Use ``build_pools`` + pool-based sampling
-            in the training loop instead.
-    """
-    examples = []
-    
-    for i in range(n_examples):
-        pcfg_string = pcfg_gen.generate_chunk(chunk_size)
-        task_name = random.choice(task_names)
-        task_def, answer = task_reg.apply_task(task_name, pcfg_string)
-        example = format_example(pcfg_string, task_def, answer)
-        examples.append(example)
-        if (i + 1) % 10000 == 0:
-            print(f"  Generated {i + 1}/{n_examples} examples...")
-    
-    return examples
-
 
 class CharTokenizer:
     """Token-level tokenizer: maps string tokens to integer IDs."""

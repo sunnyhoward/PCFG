@@ -24,10 +24,10 @@ from config_utils import (
     set_seed,
 )
 from mingpt import GPT, GPTConfig
-from pcfg_gen import CharTokenizer, PCFGDataset, PCFGGenerator, generate_dataset, build_pools, format_example
+from pcfg_gen import CharTokenizer, PCFGDataset, PCFGGenerator, build_pools, format_example
 from train_help import train
 
-SEED = 123
+SEED = 9
 
 cfg = CFG
 cfg["device"] = "cuda:0"

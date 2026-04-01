@@ -28,7 +28,7 @@ from config_utils import (
 from mingpt import GPT, GPTConfig
 from pcfg_gen import (
     CharTokenizer, PCFGDataset, PCFGGenerator,
-    generate_dataset, build_pools, format_example, collate_fn,
+    build_pools, format_example, collate_fn,
 )
 from train_help import train
 from gradient_metrics import (

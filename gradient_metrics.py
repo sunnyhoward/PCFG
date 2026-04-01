@@ -7,8 +7,7 @@ Metrics:
 """
 
 import torch
-import numpy as np
-from typing import Dict, List, Tuple
+from typing import Dict, List
 from torch.utils.data import DataLoader
 
 
