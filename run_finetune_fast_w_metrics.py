@@ -1,5 +1,5 @@
 """
-Fast finetuning + reverse experiment WITH gradient metrics (seed=123, no model saving).
+Fast finetuning + reverse experiment WITH gradient metrics (no model saving).
 
 Parallelises across concentration values using concurrent threads + CUDA streams
 and uses mixed-precision (fp16) to better saturate the GPU.  Also computes
@@ -38,7 +38,7 @@ from gradient_metrics import (
     build_task_loaders_weighted,
 )
 
-SEED = 123
+SEED = 124
 
 cfg = CFG
 cfg["device"] = "cuda:0"
@@ -248,6 +248,11 @@ def make_on_eval(correlation, prev_state_holder):
 
 def run_concentration(correlation, concentration, pretrain_model_path):
     """Run finetune + reverse for one (correlation, concentration) pair."""
+    # Re-seed per thread so each (correlation, concentration) pair is deterministic
+    # regardless of thread scheduling order.
+    thread_seed = SEED + hash((correlation, concentration)) % (2**31)
+    set_seed(thread_seed)
+
     # Each thread gets its own CUDA stream for overlap
     stream = torch.cuda.Stream(device=device)
 
@@ -345,7 +350,7 @@ def run_concentration(correlation, concentration, pretrain_model_path):
             use_lr_schedule=False,
             metrics=cfg.get("metrics"),
             data_pools=pools,
-            correlation=correlation,
+            correlation=0.0,
             on_eval=make_on_eval(correlation, rv_prev_state),
         )
 
@@ -357,6 +362,12 @@ def run_concentration(correlation, concentration, pretrain_model_path):
 
     # Wait for stream to finish before reading results
     stream.synchronize()
+
+    # Move model to CPU and delete to free GPU memory
+    model.cpu()
+    del model, finetune_optimizer, reverse_optimizer, stream
+    del ft_prev_state, rv_prev_state
+    torch.cuda.empty_cache()
 
     with print_lock:
         print(f"    Done: corr={correlation:.2f}, conc={concentration:.2f}")
@@ -377,11 +388,12 @@ for correlation in correlation_values:
     correlation_key = f"corr_{correlation:.2f}"
     all_results[correlation_key] = {}
 
-    # Locate pretrained model
+    # Always use the corr=0.00 pretrained model so pretrain representations
+    # are clean and correlation only varies during finetuning.
     models_dir = cfg["paths"]["models_dir"]
     pretrain_paths = [
-        f"pretrain_corr_{correlation:.2f}.pth",
-        os.path.join(models_dir, f"pretrain_corr_{correlation:.2f}.pth"),
+        "pretrain_corr_0.00.pth",
+        os.path.join(models_dir, "pretrain_corr_0.00.pth"),
     ]
     pretrain_model_path = None
     for p in pretrain_paths:
@@ -389,10 +401,13 @@ for correlation in correlation_values:
             pretrain_model_path = p
             break
     if pretrain_model_path is None:
-        print(f"  [SKIP] No pretrained model found for correlation={correlation:.2f}. Tried: {pretrain_paths}")
+        print(f"  [SKIP] No pretrained model found (corr=0.00). Tried: {pretrain_paths}")
         continue
     print(f"  Loading pretrained model: {pretrain_model_path}")
     print(f"  Running {len(concentration_values)} concentrations with {MAX_WORKERS} workers...")
+
+    # Free GPU memory before starting this correlation batch
+    torch.cuda.empty_cache()
 
     # Run all concentrations in parallel for this correlation
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:

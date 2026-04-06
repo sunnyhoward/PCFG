@@ -1,5 +1,5 @@
 """
-Fast finetuning + reverse experiment script (seed=123, no model saving).
+Fast finetuning + reverse experiment script (no model saving).
 
 Parallelises across concentration values using concurrent threads + CUDA streams
 and uses mixed-precision (fp16) to better saturate the GPU.
@@ -28,60 +28,6 @@ from pcfg_gen import CharTokenizer, PCFGDataset, PCFGGenerator, build_pools, for
 from train_help import train
 
 SEED = 9
-
-cfg = CFG
-cfg["device"] = "cuda:0"
-cfg["seed"] = SEED
-
-set_seed(SEED)
-device = get_device(cfg["device"])
-print(f"Using device: {device}")
-
-# Create result directories
-results_dir = cfg["paths"]["results_dir"]
-histories_dir = cfg["paths"]["histories_dir"]
-os.makedirs(histories_dir, exist_ok=True)
-
-# Build task registry
-task_registry = build_task_registry(cfg["task_definitions"])
-task_sets = cfg["task_sets"]
-pretrain_tasks = task_sets["pretrain"]
-
-chunk_size = cfg["pcfg"]["chunk_size"]
-experiment_cfg = cfg["experiment"]
-correlation_values = experiment_cfg["correlation_values"]
-concentration_values = experiment_cfg["concentration_values"]
-
-# Build shared pools
-pool_cfg = cfg.get("pool", {})
-pcfg = PCFGGenerator()
-pools = build_pools(
-    pcfg_gen=pcfg,
-    n_correlated=pool_cfg.get("n_correlated", 100000),
-    n_uncorrelated=pool_cfg.get("n_uncorrelated", 100000),
-    chunk_size=chunk_size,
-    verbose=True,
-)
-
-model_cfg = cfg["model"]
-tokenizer = CharTokenizer()
-
-gpt_config = GPTConfig(
-    vocab_size=tokenizer.vocab_size,
-    block_size=model_cfg["block_size"],
-    n_layer=model_cfg["n_layer"],
-    n_head=model_cfg["n_head"],
-    n_embd=model_cfg["n_embd"],
-    embd_pdrop=model_cfg["embd_pdrop"],
-    resid_pdrop=model_cfg["resid_pdrop"],
-    attn_pdrop=model_cfg["attn_pdrop"],
-)
-
-print(f"\n{'='*80}")
-print(f"FAST Finetune + Reverse Experiment (seed={SEED})")
-print(f"Correlation values: {correlation_values}")
-print(f"Concentration values: {concentration_values}")
-print(f"{'='*80}\n")
 
 
 def generate_dataset_from_pool(pool, n_examples, task_names, task_reg):
@@ -149,192 +95,251 @@ def _record_phase(hist):
     return d
 
 
-# Pre-build eval datasets
-eval_datasets = build_eval_datasets(pcfg, tokenizer, task_registry, chunk_size, cfg, pools)
+if __name__ == "__main__":
+    cfg = CFG
+    cfg["device"] = "cuda:0"
+    cfg["seed"] = SEED
 
-pretrain_task_weights = resolve_task_weights(
-    pretrain_tasks,
-    "operand_probs",
-    cfg["operand_probs"],
-)
+    set_seed(SEED)
+    device = get_device(cfg["device"])
+    print(f"Using device: {device}")
 
-finetune_train_tasks = [
-    "count_a", "count_b", "count_c",
-    "count_aa", "count_bb", "count_cc",
-    "index_a", "index_b", "index_c",
-    "index_aa", "index_bb", "index_cc",
-    "token_at_40",
-]
+    # Create result directories
+    results_dir = cfg["paths"]["results_dir"]
+    histories_dir = cfg["paths"]["histories_dir"]
+    os.makedirs(histories_dir, exist_ok=True)
 
-# Number of concentration values to run in parallel per correlation.
-# Adjust based on GPU memory — each model is small so 2-3 should fit easily.
-MAX_WORKERS = min(5, len(concentration_values))
+    # Build task registry
+    task_registry = build_task_registry(cfg["task_definitions"])
+    task_sets = cfg["task_sets"]
+    pretrain_tasks = task_sets["pretrain"]
 
-# Lock for thread-safe printing
-print_lock = threading.Lock()
+    chunk_size = cfg["pcfg"]["chunk_size"]
+    experiment_cfg = cfg["experiment"]
+    correlation_values = experiment_cfg["correlation_values"]
+    concentration_values = experiment_cfg["concentration_values"]
 
+    # Build shared pools
+    pool_cfg = cfg.get("pool", {})
+    pcfg = PCFGGenerator()
+    pools = build_pools(
+        pcfg_gen=pcfg,
+        n_correlated=pool_cfg.get("n_correlated", 100000),
+        n_uncorrelated=pool_cfg.get("n_uncorrelated", 100000),
+        chunk_size=chunk_size,
+        verbose=True,
+    )
 
-def run_concentration(correlation, concentration, pretrain_model_path):
-    """Run finetune + reverse for one (correlation, concentration) pair."""
-    # Each thread gets its own CUDA stream for overlap
-    stream = torch.cuda.Stream(device=device)
+    model_cfg = cfg["model"]
+    tokenizer = CharTokenizer()
 
-    with torch.cuda.stream(stream):
-        # Fresh model copy
-        model = GPT(gpt_config).to(device)
-        ckpt = torch.load(pretrain_model_path, map_location=device)
-        model.load_state_dict(ckpt['model_state_dict'])
+    gpt_config = GPTConfig(
+        vocab_size=tokenizer.vocab_size,
+        block_size=model_cfg["block_size"],
+        n_layer=model_cfg["n_layer"],
+        n_head=model_cfg["n_head"],
+        n_embd=model_cfg["n_embd"],
+        embd_pdrop=model_cfg["embd_pdrop"],
+        resid_pdrop=model_cfg["resid_pdrop"],
+        attn_pdrop=model_cfg["attn_pdrop"],
+    )
 
-        # ---- Finetuning ----
-        finetune_optimizer = build_optimizer(
-            model.parameters(),
-            cfg["optimizer"],
-            experiment_cfg["finetune_lr"],
-        )
-
-        other_task_weight = (1 - concentration) / len(finetune_train_tasks[1:])
-        finetune_weights = [concentration, *[other_task_weight] * (len(finetune_train_tasks) - 1)]
-
-        history_finetune = train(
-            model=model,
-            tokenizer=tokenizer,
-            device=device,
-            steps=experiment_cfg["finetune_steps"],
-            batch_size=experiment_cfg["finetune_batch_size"],
-            lr=experiment_cfg["finetune_lr"],
-            min_lr=experiment_cfg["finetune_min_lr"],
-            warmup_steps=get_warmup_steps(
-                experiment_cfg["finetune_steps"],
-                warmup_ratio=experiment_cfg["finetune_warmup_ratio"],
-            ),
-            log_interval=experiment_cfg["finetune_log_interval"],
-            task_names=finetune_train_tasks,
-            task_weights=finetune_weights,
-            pcfg_gen=pcfg,
-            task_reg=task_registry,
-            chunk_size=chunk_size,
-            mask_answer_only=False,
-            max_grad_norm=experiment_cfg["max_grad_norm"],
-            optimizer=finetune_optimizer,
-            val_datasets=eval_datasets,
-            val_batch_size=experiment_cfg["finetune_batch_size"],
-            log_prefix=f"Finetune[corr={correlation:.2f},conc={concentration:.2f}]",
-            use_lr_schedule=True,
-            metrics=cfg.get("metrics"),
-            data_pools=pools,
-            correlation=correlation,
-        )
-
-        # Save history only (no model checkpoint)
-        finetune_history_path = os.path.join(
-            histories_dir,
-            f"finetune_corr_{correlation:.2f}_conc_{concentration:.2f}_seed{SEED}_history.pth",
-        )
-        torch.save(history_finetune, finetune_history_path)
-
-        # ---- Reverse training ----
-        reverse_optimizer = build_optimizer(
-            model.parameters(),
-            cfg["optimizer"],
-            experiment_cfg["reverse_lr"],
-        )
-
-        reverse_history = train(
-            model=model,
-            tokenizer=tokenizer,
-            device=device,
-            steps=experiment_cfg["reverse_steps"],
-            batch_size=experiment_cfg["reverse_batch_size"],
-            lr=experiment_cfg["reverse_lr"],
-            min_lr=experiment_cfg["reverse_min_lr"],
-            warmup_steps=get_warmup_steps(
-                experiment_cfg["reverse_steps"],
-                warmup_ratio=experiment_cfg["reverse_warmup_ratio"],
-            ),
-            log_interval=experiment_cfg["reverse_log_interval"],
-            task_names=pretrain_tasks,
-            task_weights=pretrain_task_weights,
-            pcfg_gen=pcfg,
-            task_reg=task_registry,
-            chunk_size=chunk_size,
-            mask_answer_only=False,
-            max_grad_norm=experiment_cfg["max_grad_norm"],
-            optimizer=reverse_optimizer,
-            val_datasets=eval_datasets,
-            val_batch_size=experiment_cfg["reverse_batch_size"],
-            log_prefix=f"Reverse[corr={correlation:.2f},conc={concentration:.2f}]",
-            use_lr_schedule=False,
-            metrics=cfg.get("metrics"),
-            data_pools=pools,
-            correlation=correlation,
-        )
-
-        reverse_history_path = os.path.join(
-            histories_dir,
-            f"reverse_corr_{correlation:.2f}_conc_{concentration:.2f}_seed{SEED}_history.pth",
-        )
-        torch.save(reverse_history, reverse_history_path)
-
-    # Wait for stream to finish before reading results
-    stream.synchronize()
-
-    with print_lock:
-        print(f"    Done: corr={correlation:.2f}, conc={concentration:.2f}")
-
-    return {
-        "finetune_final": _record_phase(history_finetune),
-        "reverse_final": _record_phase(reverse_history),
-    }
-
-
-all_results = {}
-
-for correlation in correlation_values:
     print(f"\n{'='*80}")
-    print(f"Correlation: {correlation}")
-    print(f"{'='*80}")
+    print(f"FAST Finetune + Reverse Experiment (seed={SEED})")
+    print(f"Correlation values: {correlation_values}")
+    print(f"Concentration values: {concentration_values}")
+    print(f"{'='*80}\n")
 
-    correlation_key = f"corr_{correlation:.2f}"
-    all_results[correlation_key] = {}
+    # Pre-build eval datasets
+    eval_datasets = build_eval_datasets(pcfg, tokenizer, task_registry, chunk_size, cfg, pools)
 
-    # Locate pretrained model
-    models_dir = cfg["paths"]["models_dir"]
-    pretrain_paths = [
-        f"pretrain_corr_{correlation:.2f}.pth",
-        os.path.join(models_dir, f"pretrain_corr_{correlation:.2f}.pth"),
+    pretrain_task_weights = resolve_task_weights(
+        pretrain_tasks,
+        "operand_probs",
+        cfg["operand_probs"],
+    )
+
+    finetune_train_tasks = [
+        "count_a", "count_b", "count_c",
+        "count_aa", "count_bb", "count_cc",
+        "index_a", "index_b", "index_c",
+        "index_aa", "index_bb", "index_cc",
+        "token_at_40",
     ]
-    pretrain_model_path = None
-    for p in pretrain_paths:
-        if os.path.exists(p):
-            pretrain_model_path = p
-            break
-    if pretrain_model_path is None:
-        print(f"  [SKIP] No pretrained model found for correlation={correlation:.2f}. Tried: {pretrain_paths}")
-        continue
-    print(f"  Loading pretrained model: {pretrain_model_path}")
-    print(f"  Running {len(concentration_values)} concentrations with {MAX_WORKERS} workers...")
 
-    # Run all concentrations in parallel for this correlation
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        futures = {
-            executor.submit(run_concentration, correlation, conc, pretrain_model_path): conc
-            for conc in concentration_values
+    # Number of concentration values to run in parallel per correlation.
+    # Adjust based on GPU memory — each model is small so 2-3 should fit easily.
+    MAX_WORKERS = min(5, len(concentration_values))
+
+    # Lock for thread-safe printing
+    print_lock = threading.Lock()
+
+    def run_concentration(correlation, concentration, pretrain_model_path):
+        """Run finetune + reverse for one (correlation, concentration) pair."""
+        # Re-seed per thread so each (correlation, concentration) pair is deterministic
+        # regardless of thread scheduling order.
+        thread_seed = SEED + hash((correlation, concentration)) % (2**31)
+        set_seed(thread_seed)
+
+        # Each thread gets its own CUDA stream for overlap
+        stream = torch.cuda.Stream(device=device)
+
+        with torch.cuda.stream(stream):
+            # Fresh model copy
+            model = GPT(gpt_config).to(device)
+            ckpt = torch.load(pretrain_model_path, map_location=device)
+            model.load_state_dict(ckpt['model_state_dict'])
+
+            # ---- Finetuning ----
+            finetune_optimizer = build_optimizer(
+                model.parameters(),
+                cfg["optimizer"],
+                experiment_cfg["finetune_lr"],
+            )
+
+            other_task_weight = (1 - concentration) / len(finetune_train_tasks[1:])
+            finetune_weights = [concentration, *[other_task_weight] * (len(finetune_train_tasks) - 1)]
+
+            history_finetune = train(
+                model=model,
+                tokenizer=tokenizer,
+                device=device,
+                steps=experiment_cfg["finetune_steps"],
+                batch_size=experiment_cfg["finetune_batch_size"],
+                lr=experiment_cfg["finetune_lr"],
+                min_lr=experiment_cfg["finetune_min_lr"],
+                warmup_steps=get_warmup_steps(
+                    experiment_cfg["finetune_steps"],
+                    warmup_ratio=experiment_cfg["finetune_warmup_ratio"],
+                ),
+                log_interval=experiment_cfg["finetune_log_interval"],
+                task_names=finetune_train_tasks,
+                task_weights=finetune_weights,
+                pcfg_gen=pcfg,
+                task_reg=task_registry,
+                chunk_size=chunk_size,
+                mask_answer_only=False,
+                max_grad_norm=experiment_cfg["max_grad_norm"],
+                optimizer=finetune_optimizer,
+                val_datasets=eval_datasets,
+                val_batch_size=experiment_cfg["finetune_batch_size"],
+                log_prefix=f"Finetune[corr={correlation:.2f},conc={concentration:.2f}]",
+                use_lr_schedule=True,
+                metrics=cfg.get("metrics"),
+                data_pools=pools,
+                correlation=correlation,
+            )
+
+            # Save history only (no model checkpoint)
+            finetune_history_path = os.path.join(
+                histories_dir,
+                f"finetune_corr_{correlation:.2f}_conc_{concentration:.2f}_seed{SEED}_history.pth",
+            )
+            torch.save(history_finetune, finetune_history_path)
+
+            # ---- Reverse training ----
+            reverse_optimizer = build_optimizer(
+                model.parameters(),
+                cfg["optimizer"],
+                experiment_cfg["reverse_lr"],
+            )
+
+            reverse_history = train(
+                model=model,
+                tokenizer=tokenizer,
+                device=device,
+                steps=experiment_cfg["reverse_steps"],
+                batch_size=experiment_cfg["reverse_batch_size"],
+                lr=experiment_cfg["reverse_lr"],
+                min_lr=experiment_cfg["reverse_min_lr"],
+                warmup_steps=get_warmup_steps(
+                    experiment_cfg["reverse_steps"],
+                    warmup_ratio=experiment_cfg["reverse_warmup_ratio"],
+                ),
+                log_interval=experiment_cfg["reverse_log_interval"],
+                task_names=pretrain_tasks,
+                task_weights=pretrain_task_weights,
+                pcfg_gen=pcfg,
+                task_reg=task_registry,
+                chunk_size=chunk_size,
+                mask_answer_only=False,
+                max_grad_norm=experiment_cfg["max_grad_norm"],
+                optimizer=reverse_optimizer,
+                val_datasets=eval_datasets,
+                val_batch_size=experiment_cfg["reverse_batch_size"],
+                log_prefix=f"Reverse[corr={correlation:.2f},conc={concentration:.2f}]",
+                use_lr_schedule=False,
+                metrics=cfg.get("metrics"),
+                data_pools=pools,
+                correlation=0.0,
+            )
+
+            reverse_history_path = os.path.join(
+                histories_dir,
+                f"reverse_corr_{correlation:.2f}_conc_{concentration:.2f}_seed{SEED}_history.pth",
+            )
+            torch.save(reverse_history, reverse_history_path)
+
+        # Wait for stream to finish before reading results
+        stream.synchronize()
+
+        with print_lock:
+            print(f"    Done: corr={correlation:.2f}, conc={concentration:.2f}")
+
+        return {
+            "finetune_final": _record_phase(history_finetune),
+            "reverse_final": _record_phase(reverse_history),
         }
-        for future in as_completed(futures):
-            conc = futures[future]
-            conc_key = f"conc_{conc:.2f}"
-            try:
-                all_results[correlation_key][conc_key] = future.result()
-            except Exception as e:
-                print(f"  [ERROR] corr={correlation:.2f}, conc={conc:.2f}: {e}")
-                import traceback
-                traceback.print_exc()
 
-# Save summary
-summary_path = os.path.join(results_dir, f"finetune_experiment_summary_seed{SEED}.json")
-with open(summary_path, "w") as f:
-    json.dump(all_results, f, indent=2)
-print(f"\nSaved experiment summary: {summary_path}")
-print(f"\n{'='*80}")
-print(f"Experiment completed! Results saved to: {results_dir}")
-print(f"{'='*80}")
+    all_results = {}
+
+    for correlation in correlation_values:
+        print(f"\n{'='*80}")
+        print(f"Correlation: {correlation}")
+        print(f"{'='*80}")
+
+        correlation_key = f"corr_{correlation:.2f}"
+        all_results[correlation_key] = {}
+
+        # Always use the corr=0.00 pretrained model so pretrain representations
+        # are clean and correlation only varies during finetuning.
+        models_dir = cfg["paths"]["models_dir"]
+        pretrain_paths = [
+            "pretrain_corr_0.00.pth",
+            os.path.join(models_dir, "pretrain_corr_0.00.pth"),
+        ]
+        pretrain_model_path = None
+        for p in pretrain_paths:
+            if os.path.exists(p):
+                pretrain_model_path = p
+                break
+        if pretrain_model_path is None:
+            print(f"  [SKIP] No pretrained model found (corr=0.00). Tried: {pretrain_paths}")
+            continue
+        print(f"  Loading pretrained model: {pretrain_model_path}")
+        print(f"  Running {len(concentration_values)} concentrations with {MAX_WORKERS} workers...")
+
+        # Run all concentrations in parallel for this correlation
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = {
+                executor.submit(run_concentration, correlation, conc, pretrain_model_path): conc
+                for conc in concentration_values
+            }
+            for future in as_completed(futures):
+                conc = futures[future]
+                conc_key = f"conc_{conc:.2f}"
+                try:
+                    all_results[correlation_key][conc_key] = future.result()
+                except Exception as e:
+                    print(f"  [ERROR] corr={correlation:.2f}, conc={conc:.2f}: {e}")
+                    import traceback
+                    traceback.print_exc()
+
+    # Save summary
+    summary_path = os.path.join(results_dir, f"finetune_experiment_summary_seed{SEED}.json")
+    with open(summary_path, "w") as f:
+        json.dump(all_results, f, indent=2)
+    print(f"\nSaved experiment summary: {summary_path}")
+    print(f"\n{'='*80}")
+    print(f"Experiment completed! Results saved to: {results_dir}")
+    print(f"{'='*80}")

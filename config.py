@@ -77,8 +77,8 @@ CFG = {
         "eval_per_other_task": 500,
     },
     "experiment": {
-        "correlation_values": [0.00],
-        "concentration_values": [ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        "correlation_values": [0.25, 0.5, 0.75, 1.0],
+        "concentration_values": [ 0.1,0.3, 0.4, 0.5,0.6, 0.7,  0.8, 0.85, 0.9,  1.0],
         "pretrain_steps": 200000,
         "pretrain_batch_size": 96,
         "pretrain_lr": 0.001,
