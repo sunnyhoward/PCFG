@@ -38,7 +38,8 @@ from gradient_metrics import (
     build_task_loaders_weighted,
 )
 
-SEED = 124
+SEED = 2
+SAVE_MODELS = True
 
 cfg = CFG
 cfg["device"] = "cuda:0"
@@ -51,7 +52,9 @@ print(f"Using device: {device}")
 # Create result directories
 results_dir = cfg["paths"]["results_dir"]
 histories_dir = cfg["paths"]["histories_dir"]
+models_dir = cfg["paths"]["models_dir"]
 os.makedirs(histories_dir, exist_ok=True)
+os.makedirs(models_dir, exist_ok=True)
 
 # Build task registry
 task_registry = build_task_registry(cfg["task_definitions"])
@@ -313,6 +316,13 @@ def run_concentration(correlation, concentration, pretrain_model_path):
         )
         torch.save(history_finetune, finetune_history_path)
 
+        if SAVE_MODELS:
+            finetune_model_path = os.path.join(
+                models_dir,
+                f"finetune_corr_{correlation:.2f}_conc_{concentration:.2f}_seed{SEED}.pth",
+            )
+            torch.save({"model_state_dict": model.state_dict()}, finetune_model_path)
+
         # ---- Reverse training ----
         reverse_optimizer = build_optimizer(
             model.parameters(),
@@ -359,6 +369,13 @@ def run_concentration(correlation, concentration, pretrain_model_path):
             f"reverse_corr_{correlation:.2f}_conc_{concentration:.2f}_seed{SEED}_history.pth",
         )
         torch.save(reverse_history, reverse_history_path)
+
+        if SAVE_MODELS:
+            reverse_model_path = os.path.join(
+                models_dir,
+                f"reverse_corr_{correlation:.2f}_conc_{concentration:.2f}_seed{SEED}.pth",
+            )
+            torch.save({"model_state_dict": model.state_dict()}, reverse_model_path)
 
     # Wait for stream to finish before reading results
     stream.synchronize()
@@ -426,7 +443,7 @@ for correlation in correlation_values:
                 traceback.print_exc()
 
 # Save summary
-summary_path = os.path.join(results_dir, f"finetune_experiment_summary_seed{SEED}_3.json")
+summary_path = os.path.join(results_dir, f"finetune_experiment_summary_seed{SEED}_4.json")
 with open(summary_path, "w") as f:
     json.dump(all_results, f, indent=2)
 print(f"\nSaved experiment summary: {summary_path}")
