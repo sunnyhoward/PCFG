@@ -426,7 +426,7 @@ for correlation in correlation_values:
                 traceback.print_exc()
 
 # Save summary
-summary_path = os.path.join(results_dir, f"finetune_experiment_summary_seed{SEED}_2.json")
+summary_path = os.path.join(results_dir, f"finetune_experiment_summary_seed{SEED}_3.json")
 with open(summary_path, "w") as f:
     json.dump(all_results, f, indent=2)
 print(f"\nSaved experiment summary: {summary_path}")
