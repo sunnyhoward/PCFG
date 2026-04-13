@@ -1,17 +1,14 @@
 """
-Fast pretraining script (seed=9, saves model checkpoints).
+Pretraining script (seed=9).
 
-Parallelises across correlation values using concurrent threads + CUDA streams.
-
-Produces model checkpoints at: pretrain_corr_{correlation:.2f}.pth
-(used by run_finetune_fast.py)
+Trains a single model with correlation=0 (uncorrelated data only).
+Produces a model checkpoint at: pretrain_corr_0.00.pth
+(used by run_finetune_fast_w_metrics.py)
 """
 
 import os
 import json
 import torch
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from config import CFG
 from config_utils import (
@@ -24,9 +21,10 @@ from config_utils import (
 )
 from mingpt import GPT, GPTConfig
 from pcfg_gen import CharTokenizer, PCFGGenerator, build_pools
-from train_help import train
+from train_help import train, build_eval_datasets, _record_phase
 
 SEED = 9
+CORRELATION = 0.0
 
 cfg = CFG
 cfg["device"] = "cuda:0"
@@ -45,12 +43,10 @@ os.makedirs(histories_dir, exist_ok=True)
 
 # Build task registry
 task_registry = build_task_registry(cfg["task_definitions"])
-task_sets = cfg["task_sets"]
-pretrain_tasks = task_sets["pretrain"]
+pretrain_tasks = cfg["task_sets"]["pretrain"]
 
 chunk_size = cfg["pcfg"]["chunk_size"]
 experiment_cfg = cfg["experiment"]
-correlation_values = experiment_cfg["correlation_values"]
 
 # Build shared pools
 pool_cfg = cfg.get("pool", {})
@@ -83,130 +79,80 @@ pretrain_task_weights = resolve_task_weights(
     cfg["operand_probs"],
 )
 
+eval_datasets = build_eval_datasets(pools, cfg, task_registry, tokenizer)
+
 print(f"\n{'='*80}")
-print(f"FAST Pretraining (seed={SEED})")
-print(f"Correlation values: {correlation_values}")
+print(f"Pretraining (seed={SEED}, correlation={CORRELATION})")
 print(f"Steps: {experiment_cfg['pretrain_steps']}")
 print(f"Batch size: {experiment_cfg['pretrain_batch_size']}")
 print(f"{'='*80}\n")
 
-# Build eval datasets (same as finetune script)
-from run_finetune_fast import build_eval_datasets, _record_phase
+model = GPT(gpt_config).to(device)
 
-eval_datasets = build_eval_datasets(pcfg, tokenizer, task_registry, chunk_size, cfg, pools)
+optimizer = build_optimizer(
+    model.parameters(),
+    cfg["optimizer"],
+    experiment_cfg["pretrain_lr"],
+)
 
-# Number of correlation values to run in parallel
-MAX_WORKERS = min(5, len(correlation_values))
+history = train(
+    model=model,
+    tokenizer=tokenizer,
+    device=device,
+    steps=experiment_cfg["pretrain_steps"],
+    batch_size=experiment_cfg["pretrain_batch_size"],
+    lr=experiment_cfg["pretrain_lr"],
+    min_lr=experiment_cfg["pretrain_min_lr"],
+    warmup_steps=get_warmup_steps(
+        experiment_cfg["pretrain_steps"],
+        warmup_ratio=experiment_cfg["pretrain_warmup_ratio"],
+    ),
+    log_interval=experiment_cfg["pretrain_log_interval"],
+    task_names=pretrain_tasks,
+    task_weights=pretrain_task_weights,
+    pcfg_gen=pcfg,
+    task_reg=task_registry,
+    chunk_size=chunk_size,
+    mask_answer_only=False,
+    max_grad_norm=experiment_cfg["max_grad_norm"],
+    optimizer=optimizer,
+    val_datasets=eval_datasets,
+    val_batch_size=experiment_cfg["pretrain_batch_size"],
+    log_prefix=f"Pretrain[corr={CORRELATION:.2f}]",
+    use_lr_schedule=True,
+    metrics=cfg.get("metrics"),
+    data_pools=pools,
+    correlation=CORRELATION,
+)
 
-# Lock for thread-safe printing
-print_lock = threading.Lock()
+# Save model checkpoint
+checkpoint = {
+    "model_state_dict": model.state_dict(),
+    "optimizer_state_dict": optimizer.state_dict(),
+    "correlation": CORRELATION,
+    "seed": SEED,
+    "steps": experiment_cfg["pretrain_steps"],
+}
 
+model_path = f"pretrain_corr_{CORRELATION:.2f}.pth"
+torch.save(checkpoint, model_path)
+torch.save(checkpoint, os.path.join(models_dir, f"pretrain_corr_{CORRELATION:.2f}.pth"))
 
-def run_pretrain(correlation):
-    """Pretrain a model from scratch for one correlation value."""
-    stream = torch.cuda.Stream(device=device)
-
-    with torch.cuda.stream(stream):
-        model = GPT(gpt_config).to(device)
-
-        optimizer = build_optimizer(
-            model.parameters(),
-            cfg["optimizer"],
-            experiment_cfg["pretrain_lr"],
-        )
-
-        history = train(
-            model=model,
-            tokenizer=tokenizer,
-            device=device,
-            steps=experiment_cfg["pretrain_steps"],
-            batch_size=experiment_cfg["pretrain_batch_size"],
-            lr=experiment_cfg["pretrain_lr"],
-            min_lr=experiment_cfg["pretrain_min_lr"],
-            warmup_steps=get_warmup_steps(
-                experiment_cfg["pretrain_steps"],
-                warmup_ratio=experiment_cfg["pretrain_warmup_ratio"],
-            ),
-            log_interval=experiment_cfg["pretrain_log_interval"],
-            task_names=pretrain_tasks,
-            task_weights=pretrain_task_weights,
-            pcfg_gen=pcfg,
-            task_reg=task_registry,
-            chunk_size=chunk_size,
-            mask_answer_only=False,
-            max_grad_norm=experiment_cfg["max_grad_norm"],
-            optimizer=optimizer,
-            val_datasets=eval_datasets,
-            val_batch_size=experiment_cfg["pretrain_batch_size"],
-            log_prefix=f"Pretrain[corr={correlation:.2f}]",
-            use_lr_schedule=True,
-            metrics=cfg.get("metrics"),
-            data_pools=pools,
-            correlation=correlation,
-        )
-
-    stream.synchronize()
-
-    # Save model checkpoint (both in root and models_dir, matching finetune expectations)
-    checkpoint = {
-        "model_state_dict": model.state_dict(),
-        "optimizer_state_dict": optimizer.state_dict(),
-        "correlation": correlation,
-        "seed": SEED,
-        "steps": experiment_cfg["pretrain_steps"],
-    }
-
-    model_path = f"pretrain_corr_{correlation:.2f}.pth"
-    torch.save(checkpoint, model_path)
-
-    model_path_alt = os.path.join(models_dir, f"pretrain_corr_{correlation:.2f}.pth")
-    torch.save(checkpoint, model_path_alt)
-
-    # Save history
-    history_path = os.path.join(
-        histories_dir,
-        f"pretrain_corr_{correlation:.2f}_seed{SEED}_history.pth",
-    )
-    torch.save(history, history_path)
-
-    with print_lock:
-        print(f"  Done: corr={correlation:.2f} | Saved: {model_path}")
-
-    return {
-        "model_path": model_path,
-        "final": _record_phase(history),
-    }
-
-
-all_results = {}
-
-if len(correlation_values) == 1:
-    correlation = correlation_values[0]
-    print(f"\nPretraining for correlation={correlation:.2f}")
-    result = run_pretrain(correlation)
-    all_results[f"corr_{correlation:.2f}"] = result
-else:
-    print(f"\nRunning {len(correlation_values)} correlations with {MAX_WORKERS} workers...")
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        futures = {
-            executor.submit(run_pretrain, corr): corr
-            for corr in correlation_values
-        }
-        for future in as_completed(futures):
-            corr = futures[future]
-            corr_key = f"corr_{corr:.2f}"
-            try:
-                all_results[corr_key] = future.result()
-            except Exception as e:
-                print(f"  [ERROR] corr={corr:.2f}: {e}")
-                import traceback
-                traceback.print_exc()
+# Save history
+history_path = os.path.join(
+    histories_dir,
+    f"pretrain_corr_{CORRELATION:.2f}_seed{SEED}_history.pth",
+)
+torch.save(history, history_path)
 
 # Save summary
+summary = {"model_path": model_path, "final": _record_phase(history)}
 summary_path = os.path.join(results_dir, f"pretrain_summary_seed{SEED}.json")
 with open(summary_path, "w") as f:
-    json.dump(all_results, f, indent=2, default=str)
-print(f"\nSaved pretrain summary: {summary_path}")
+    json.dump(summary, f, indent=2, default=str)
+
+print(f"\nSaved model: {model_path}")
+print(f"Saved pretrain summary: {summary_path}")
 print(f"\n{'='*80}")
 print(f"Pretraining completed! Models saved to: {models_dir}")
 print(f"{'='*80}")

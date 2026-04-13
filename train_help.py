@@ -222,6 +222,66 @@ def train(
     return history
 
 
+def generate_dataset_from_pool(pool, n_examples, task_names, task_reg):
+    """Sample examples from a pre-built pool for evaluation datasets."""
+    examples = []
+    for _ in range(n_examples):
+        pcfg_string = random.choice(pool)
+        task_name = random.choice(task_names)
+        task_def, answer = task_reg.apply_task(task_name, pcfg_string)
+        examples.append(format_example(pcfg_string, task_def, answer))
+    return examples
+
+
+def build_eval_datasets(pools, cfg_dict, task_registry, tokenizer):
+    """Build the standard set of evaluation datasets from pre-built pools."""
+    all_tasks = cfg_dict["task_sets"]["all"]
+    other_tasks = [t for t in all_tasks if t not in ["count_a", "count_b"]]
+    n_val = cfg_dict["data"]["val_examples"]
+    max_len = cfg_dict["tokenizer"]["max_length"]
+    mask_answer_only_val = cfg_dict["tokenizer"]["mask_answer_only_val"]
+    per_other = cfg_dict["data"].get("eval_per_other_task", 500)
+
+    return {
+        "count_a_corr": PCFGDataset(
+            generate_dataset_from_pool(pools["correlated"], n_val, ["count_a"], task_registry),
+            tokenizer, max_length=max_len, mask_answer_only=mask_answer_only_val),
+        "count_a_uncorr": PCFGDataset(
+            generate_dataset_from_pool(pools["uncorrelated"], n_val, ["count_a"], task_registry),
+            tokenizer, max_length=max_len, mask_answer_only=mask_answer_only_val),
+        "count_b_corr": PCFGDataset(
+            generate_dataset_from_pool(pools["correlated"], n_val, ["count_b"], task_registry),
+            tokenizer, max_length=max_len, mask_answer_only=mask_answer_only_val),
+        "count_b_uncorr": PCFGDataset(
+            generate_dataset_from_pool(pools["uncorrelated"], n_val, ["count_b"], task_registry),
+            tokenizer, max_length=max_len, mask_answer_only=mask_answer_only_val),
+        "all_other_corr": PCFGDataset(
+            generate_dataset_from_pool(pools["correlated"], per_other * len(other_tasks), other_tasks, task_registry),
+            tokenizer, max_length=max_len, mask_answer_only=mask_answer_only_val),
+        "all_other_uncorr": PCFGDataset(
+            generate_dataset_from_pool(pools["uncorrelated"], per_other * len(other_tasks), other_tasks, task_registry),
+            tokenizer, max_length=max_len, mask_answer_only=mask_answer_only_val),
+    }
+
+
+def get_final_metric(history: Dict, split_name: str, metric_name: str):
+    """Get the last recorded value for a metric on a given validation split."""
+    vals = history.get("val", {}).get(split_name, {}).get(metric_name, [])
+    return vals[-1] if vals else None
+
+
+def _record_phase(hist):
+    """Extract final accuracy and loss for each eval split from a history dict."""
+    splits = ["count_a_corr", "count_a_uncorr",
+              "count_b_corr", "count_b_uncorr",
+              "all_other_corr", "all_other_uncorr"]
+    d = {}
+    for s in splits:
+        d[f"{s}_acc"]  = get_final_metric(hist, s, "answer_acc")
+        d[f"{s}_loss"] = get_final_metric(hist, s, "loss")
+    return d
+
+
 def build_task_weights(task_names: List[str], operand_probs: Dict[str, float]) -> List[float]:
     weights = []
     for name in task_names:

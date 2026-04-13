@@ -233,10 +233,6 @@ class TaskRegistry:
             raise ValueError(f"Task '{name}' not found. Available: {list(self.tasks.keys())}")
         return self.tasks[name]
     
-    def list_tasks(self) -> List[str]:
-        """List all registered task names."""
-        return list(self.tasks.keys())
-    
     def apply_task(self, name: str, pcfg_string: str) -> Tuple[str, str]:
         """Apply a task to a PCFG string.
         
@@ -431,15 +427,6 @@ class CharTokenizer:
                 print(f"Warning: Unknown token '{tok}'")
         return ids
     
-    def decode(self, token_ids: List[int]) -> List[str]:
-        """Convert a list of integer IDs back to a list of string tokens."""
-        return [self.idx2tok[idx] for idx in token_ids if idx in self.idx2tok]
-    
-    def decode_to_str(self, token_ids: List[int]) -> str:
-        """Convert token IDs to a joined string (for display)."""
-        tokens = self.decode(token_ids)
-        return ''.join(tokens)
-
 class PCFGDataset(Dataset):
     """Dataset for PCFG examples (token-list format)."""
     

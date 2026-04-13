@@ -1,11 +1,6 @@
 CFG = {
     "seed": 42,
     "device": "auto",
-    "debug": {
-        "print_device": True,
-        "print_pcfg_sample": False,
-        "print_task_checks": False,
-    },
     "pcfg": {
         "chunk_size": 250,
     },
@@ -77,8 +72,8 @@ CFG = {
         "eval_per_other_task": 500,
     },
     "experiment": {
-        "correlation_values": [ 1.0, 0.95],
-        "concentration_values": [0.9, 0.92, 0.95, 0.98, 1.0],
+        "correlation_values": [0.0, 0.25, 0.5, 0.66, 0.75, 0.85, 0.92, 0.95, 1.0],
+        "concentration_values": [0.1, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.98, 1.0],
         "pretrain_steps": 200000,
         "pretrain_batch_size": 96,
         "pretrain_lr": 0.001,
@@ -98,7 +93,6 @@ CFG = {
         "reverse_warmup_ratio": 0.2,
         "reverse_log_interval": 200,
         "max_grad_norm": 1.0,
-        "eval_use_correlation": True,
     },
     "pool": {
         # Number of correlated PCFG strings (count_a == count_b + 1) to pre-generate.
