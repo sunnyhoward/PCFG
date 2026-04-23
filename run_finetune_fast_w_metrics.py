@@ -38,7 +38,7 @@ from gradient_metrics import (
     build_task_loaders_weighted,
 )
 
-SEED = 2
+SEED = 3
 SAVE_MODELS = True
 
 cfg = CFG
